@@ -1,0 +1,3 @@
+{
+  "target_hosts": ["http://example.com", "http://example.com:8080"]
+}
