@@ -26,38 +26,42 @@ export interface IConfig {
  * @returns - Promise that resolves once the service is running.
  */
 async function startForwarder(config: IConfig): Promise<void> {
-  return new Promise((resolve) => {
-    log('Starting...');
-    const server = new Forwarder({
-      targets: config.target_hosts
-    });
+  return new Promise((resolve,  reject) => {
+    try {
+      log('Starting...');
+      const server = new Forwarder({
+        targets: config.target_hosts
+      });
 
-    const listenPort = 80;
-    server.listen(listenPort, () => {
-      log('Listening on port 80, and forwarding requests.');
-      resolve();
-    });
+      const listenPort = 80;
+      server.listen(listenPort, () => {
+        log(`Listening on port ${listenPort}, and forwarding requests.`);
+        resolve();
+      });
 
-    server.on('forwardRequest', (params: IEventForwardRequestParams) => {
-      const requestInfo = params.request;
-      requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
-      logRequest('=> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
-    });
+      server.on('forwardRequest', (params: IEventForwardRequestParams) => {
+        const requestInfo = params.request;
+        requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
+        logRequest('=> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
+      });
 
-    server.on('forwardResponse', (req: unknown, inc: unknown) => {
-      // @ts-expect-error blasd
-      logResponse(`${req.getHeader('host')} responded: ${inc.statusCode} : ${inc.statusMessage}`);
-    });
+      server.on('forwardResponse', (req: unknown, inc: unknown) => {
+        // @ts-expect-error blasd
+        logResponse(`${req.getHeader('host')} responded: ${inc.statusCode} : ${inc.statusMessage}`);
+      });
 
-    server.on('response', (inc, res) => {
-      // Send the token back with the forwarder response
-      logOtherResponse('....');
-    });
+      server.on('response', (inc, res) => {
+        // Send the token back with the forwarder response
+        logOtherResponse('....');
+      });
 
-    server.on('forwardRequestError', (err: Error, req: unknown) => {
-      // @ts-expect-error blasd
-      logError(`${req.getHeader('host')} failed: ${err.code} ${err.message}`);
-    });
+      server.on('forwardRequestError', (err: Error, req: unknown) => {
+        // @ts-expect-error blasd
+        logError(`${req.getHeader('host')} failed: ${err.code} ${err.message}`);
+      });
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -70,8 +74,9 @@ function loadConfig(): Promise<IConfig> {
   return fs.readJSON('config.json');
 }
 
+console.log('Starting...');
 loadConfig()
   .then((config) =>  startForwarder(config))
   .catch((err) => {
-    console.error(err);
+    console.error(`Error: ${err}`);
   });
