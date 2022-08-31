@@ -5,19 +5,22 @@
   "main": "dist/app.js",
   "scripts": {
     "build": "tsc",
-    "start": "ts-node src/app.ts"
+    "start": "node --tls-min-v1.0 -r ts-node/register src/app.ts"
   },
   "author": "Paul Vincent",
   "license": "MIT",
   "dependencies": {
+    "cross-env": "^7.0.3",
     "debug": "^4.3.4",
     "forwarder-http": "^3.2.0",
-    "fs-extra": "^10.1.0"
+    "fs-extra": "^10.1.0",
+    "selfsigned": "^2.0.1"
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",
     "@types/fs-extra": "^9.0.13",
     "@types/node": "^16.11.49",
+    "@types/selfsigned": "^2.0.1",
     "@typescript-eslint/eslint-plugin": "^5.33.1",
     "@typescript-eslint/parser": "^5.33.1",
     "eslint": "8.22.0",

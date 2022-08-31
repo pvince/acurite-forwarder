@@ -2,21 +2,26 @@
 import Forwarder, { IEventForwardRequestParams } from 'forwarder-http';
 import debug from 'debug';
 import fs from 'fs-extra';
+import { getSSLInfo } from './certificateManager';
 
 const log = debug('acurite-forwarder');
-const logRequest = log.extend('forwardRequest');
-const logResponse = log.extend('forwardResponse');
-const logError = log.extend('error');
-const logOtherResponse = log.extend('response');
+
+const logHTTP = log.extend('http');
+const logHTTPS = log.extend('https');
 
 /**
  * Configuration file structure
  */
 export interface IConfig {
   /**
-   * Array of hosts to forward too
+   * Array of hosts to forward standard HTTP requests too
    */
-  target_hosts: string[];
+  target_hosts_http: string[];
+
+  /**
+   * Array of hosts to forward HTTPS requests too.
+   */
+  target_hosts_https: string[];
 }
 
 /**
@@ -25,39 +30,76 @@ export interface IConfig {
  * @param config - Configuration
  * @returns - Promise that resolves once the service is running.
  */
-async function startForwarder(config: IConfig): Promise<void> {
+async function startHTTPForwarder(config: IConfig): Promise<void> {
   return new Promise((resolve,  reject) => {
     try {
-      log('Starting...');
+      logHTTP('Starting HTTP...');
       const server = new Forwarder({
-        targets: config.target_hosts
+        targets: config.target_hosts_http,
+        targetOpts: {
+          rejectUnauthorized: false
+        }
       });
 
       const listenPort = 80;
       server.listen(listenPort, () => {
-        log(`Listening on port ${listenPort}, and forwarding requests.`);
+        logHTTP(`Listening on port ${listenPort}, and forwarding requests.`);
         resolve();
       });
 
       server.on('forwardRequest', (params: IEventForwardRequestParams) => {
         const requestInfo = params.request;
         requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
-        logRequest('=> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
+        logHTTP('==> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
       });
 
       server.on('forwardResponse', (req: unknown, inc: unknown) => {
         // @ts-expect-error blasd
-        logResponse(`${req.getHeader('host')} responded: ${inc.statusCode} : ${inc.statusMessage}`);
+        logHTTP(`<== ${req.getHeader('host')} responded: ${inc.statusCode} : ${inc.statusMessage}`);
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Start the HTTPS forwarder, forwarding to all specified hosts.
+ *
+ * @param config - Configuration
+ * @returns - Promise that resolves once the service is running
+ */
+async function startHTTPSForwarder(config: IConfig): Promise<void> {
+  logHTTPS('Loading SSL Certs...');
+  const certInfo = await getSSLInfo();
+
+  return new Promise((resolve,  reject) => {
+    try {
+      logHTTPS('Starting HTTPS...');
+      const server = new Forwarder({
+        targets: config.target_hosts_https,
+        https: true,
+        httpsOpts: certInfo,
+        targetOpts: {
+          rejectUnauthorized: false
+        }
       });
 
-      server.on('response', (inc, res) => {
-        // Send the token back with the forwarder response
-        logOtherResponse('....');
+      const listenPort = 443;
+      server.listen(listenPort, () => {
+        logHTTPS(`Listening on port ${listenPort}, and forwarding requests.`);
+        resolve();
       });
 
-      server.on('forwardRequestError', (err: Error, req: unknown) => {
+      server.on('forwardRequest', (params: IEventForwardRequestParams) => {
+        const requestInfo = params.request;
+        requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
+        logHTTPS('==> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
+      });
+
+      server.on('forwardResponse', (req: unknown, inc: unknown) => {
         // @ts-expect-error blasd
-        logError(`${req.getHeader('host')} failed: ${err.code} ${err.message}`);
+        logHTTPS(`<== ${req.getHeader('host')} responded: ${inc.statusCode} : ${inc.statusMessage}`);
       });
     } catch (err) {
       reject(err);
@@ -74,9 +116,21 @@ function loadConfig(): Promise<IConfig> {
   return fs.readJSON('config.json');
 }
 
-console.log('Starting...');
-loadConfig()
-  .then((config) =>  startForwarder(config))
+/**
+ * Main startup function.
+ */
+async function startup(): Promise<void> {
+  console.log('Starting up...');
+  const config = await loadConfig();
+  const httpStartup = startHTTPForwarder(config);
+  const httpsStartup = startHTTPSForwarder(config);
+
+  await httpStartup;
+  await httpsStartup;
+  console.log('Started forwarders');
+}
+
+startup()
   .catch((err) => {
     console.error(`Error: ${err}`);
   });
