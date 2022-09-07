@@ -61,7 +61,7 @@ async function startHTTPForwarder(config: IConfig): Promise<void> {
         }
       });
 
-      const listenPort = 1234;
+      const listenPort = 80;
       server.listen(listenPort, () => {
         logHTTP(`Listening on port ${listenPort}, and forwarding requests.`);
         resolve();
