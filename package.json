@@ -11,12 +11,14 @@
   "license": "MIT",
   "dependencies": {
     "cross-env": "^7.0.3",
+    "dateformat": "^4.6.3",
     "debug": "^4.3.4",
     "forwarder-http": "^3.2.0",
     "fs-extra": "^10.1.0",
     "selfsigned": "^2.0.1"
   },
   "devDependencies": {
+    "@types/dateformat": "^5.0.0",
     "@types/debug": "^4.1.7",
     "@types/fs-extra": "^9.0.13",
     "@types/node": "^16.11.49",

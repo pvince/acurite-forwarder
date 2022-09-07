@@ -3,6 +3,8 @@ import Forwarder, { IEventForwardRequestParams } from 'forwarder-http';
 import debug from 'debug';
 import fs from 'fs-extra';
 import { getSSLInfo } from './certificateManager';
+import { ClientRequest, ServerResponse } from 'http';
+import dateFormat from 'dateformat';
 
 const log = debug('acurite-forwarder');
 
@@ -25,6 +27,24 @@ export interface IConfig {
 }
 
 /**
+ * Handle creating a response for the client.
+ *
+ * @param req - Client Request
+ * @param res - Server Response to populate.
+ */
+function _respond(req: ClientRequest, res: ServerResponse): void {
+  const now = new Date();
+
+  const response = {
+    localtime: dateFormat(now, 'HH:MM:ss')
+  };
+
+  res.setHeader('content-type', 'application/json');
+  res.write(JSON.stringify(response));
+  res.end();
+}
+
+/**
  * Starts the forwarder, forwarding to all specified hosts.
  *
  * @param config - Configuration
@@ -41,7 +61,7 @@ async function startHTTPForwarder(config: IConfig): Promise<void> {
         }
       });
 
-      const listenPort = 80;
+      const listenPort = 1234;
       server.listen(listenPort, () => {
         logHTTP(`Listening on port ${listenPort}, and forwarding requests.`);
         resolve();
@@ -52,6 +72,8 @@ async function startHTTPForwarder(config: IConfig): Promise<void> {
         requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
         logHTTP('==> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
       });
+
+      server.on('response', _respond);
 
       server.on('forwardResponse', (req: unknown, inc: unknown) => {
         // @ts-expect-error blasd
@@ -90,6 +112,8 @@ async function startHTTPSForwarder(config: IConfig): Promise<void> {
         logHTTPS(`Listening on port ${listenPort}, and forwarding requests.`);
         resolve();
       });
+
+      server.on('response', _respond);
 
       server.on('forwardRequest', (params: IEventForwardRequestParams) => {
         const requestInfo = params.request;
