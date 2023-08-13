@@ -1,4 +1,4 @@
-import selfsigned, { Attribute, ShortAttribute } from 'selfsigned';
+import selfsigned from 'selfsigned';
 import path from 'path';
 import fs from 'fs-extra';
 import debug from 'debug';
@@ -29,7 +29,7 @@ export interface ICertInfo {
  * @returns newly generated certificate information
  */
 function generateSSLCerts(): ICertInfo {
-  const attrs: Array<Attribute | ShortAttribute> = [
+  const attrs = [
     { name: 'commonName', value: 'atlasapi.myacurite.com' }
   ];
   const pems = selfsigned.generate(attrs, {
