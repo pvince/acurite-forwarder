@@ -1,10 +1,9 @@
-
 import Forwarder, { IEventForwardRequestParams } from 'forwarder-http';
 import debug from 'debug';
 import fs from 'fs-extra';
-import { getSSLInfo } from './certificateManager';
 import { ClientRequest, ServerResponse } from 'http';
 import dateFormat from 'dateformat';
+import { getSSLInfo } from './certificateManager';
 
 const log = debug('acurite-forwarder');
 
@@ -32,7 +31,7 @@ export interface IConfig {
  * @param req - Client Request
  * @param res - Server Response to populate.
  */
-function _respond(req: ClientRequest, res: ServerResponse): void {
+export function respond(req: ClientRequest, res: ServerResponse): void {
   const now = new Date();
 
   const response = {
@@ -50,8 +49,8 @@ function _respond(req: ClientRequest, res: ServerResponse): void {
  * @param config - Configuration
  * @returns - Promise that resolves once the service is running.
  */
-async function startHTTPForwarder(config: IConfig): Promise<void> {
-  return new Promise((resolve,  reject) => {
+export async function startHTTPForwarder(config: IConfig): Promise<void> {
+  return new Promise((resolve, reject) => {
     try {
       logHTTP('Starting HTTP...');
       const server = new Forwarder({
@@ -69,11 +68,11 @@ async function startHTTPForwarder(config: IConfig): Promise<void> {
 
       server.on('forwardRequest', (params: IEventForwardRequestParams) => {
         const requestInfo = params.request;
-        requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
+        requestInfo.path = requestInfo.path.replaceAll('\\', '/');
         logHTTP('==> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
       });
 
-      server.on('response', _respond);
+      server.on('response', respond);
 
       server.on('forwardResponse', (req: unknown, inc: unknown) => {
         // @ts-expect-error blasd
@@ -91,11 +90,11 @@ async function startHTTPForwarder(config: IConfig): Promise<void> {
  * @param config - Configuration
  * @returns - Promise that resolves once the service is running
  */
-async function startHTTPSForwarder(config: IConfig): Promise<void> {
+export async function startHTTPSForwarder(config: IConfig): Promise<void> {
   logHTTPS('Loading SSL Certs...');
   const certInfo = await getSSLInfo();
 
-  return new Promise((resolve,  reject) => {
+  return new Promise((resolve, reject) => {
     try {
       logHTTPS('Starting HTTPS...');
       const server = new Forwarder({
@@ -113,11 +112,11 @@ async function startHTTPSForwarder(config: IConfig): Promise<void> {
         resolve();
       });
 
-      server.on('response', _respond);
+      server.on('response', respond);
 
       server.on('forwardRequest', (params: IEventForwardRequestParams) => {
         const requestInfo = params.request;
-        requestInfo.path =  requestInfo.path.replaceAll('\\', '/');
+        requestInfo.path = requestInfo.path.replaceAll('\\', '/');
         logHTTPS('==> %s %s%s', requestInfo.method, requestInfo.host, requestInfo.path);
       });
 
@@ -136,14 +135,14 @@ async function startHTTPSForwarder(config: IConfig): Promise<void> {
  *
  * @returns - Returns the configuration loaded from disk.
  */
-function loadConfig(): Promise<IConfig> {
+export function loadConfig(): Promise<IConfig> {
   return fs.readJSON('config.json');
 }
 
 /**
  * Main startup function.
  */
-async function startup(): Promise<void> {
+export async function startup(): Promise<void> {
   console.log('Starting up...');
   const config = await loadConfig();
   const httpStartup = startHTTPForwarder(config);
@@ -154,7 +153,9 @@ async function startup(): Promise<void> {
   console.log('Started forwarders');
 }
 
-startup()
-  .catch((err) => {
-    console.error(`Error: ${err}`);
-  });
+if (require.main === module) {
+  startup()
+    .catch((err: unknown) => {
+      console.error(`Error: ${err}`);
+    });
+}

@@ -28,7 +28,7 @@ export interface ICertInfo {
  *
  * @returns newly generated certificate information
  */
-function generateSSLCerts(): ICertInfo {
+export function generateSSLCerts(): ICertInfo {
   const attrs = [
     { name: 'commonName', value: 'atlasapi.myacurite.com' }
   ];
@@ -49,7 +49,7 @@ function generateSSLCerts(): ICertInfo {
  *
  * @param certInfo - Certificate info to write
  */
-async function writeCerts(certInfo: ICertInfo): Promise<void> {
+export async function writeCerts(certInfo: ICertInfo): Promise<void> {
   try {
     await fs.ensureDir(CERT_DIR);
     await fs.writeFile(SSL_CERT, certInfo.cert);
@@ -62,7 +62,7 @@ async function writeCerts(certInfo: ICertInfo): Promise<void> {
 /**
  * Read certificates from disk, if they exist.
  */
-async function readCerts(): Promise<ICertInfo | null> {
+export async function readCerts(): Promise<ICertInfo | null> {
   let result: ICertInfo | null = null;
 
   try {
@@ -88,7 +88,6 @@ export async function getSSLInfo(): Promise<ICertInfo> {
 
     await writeCerts(result);
   }
-
 
   return result;
 }
